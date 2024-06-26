@@ -29,8 +29,22 @@ class BiaxialTest:
         self.data_infarct_crossfiber[:,0] -= np.min(self.data_infarct_crossfiber[:,0])
 
 
+    def get_material_param_names(self, material):
+        if material == 'fung':
+            return ['C', 'bf', 'bt', 'bfs']
+        elif material == 'ho':
+            return ['a', 'b', 'af', 'bf']
+        elif material == 'ho_linear':
+            return ['a', 'af']
+        elif material == 'de_linear':
+            return ['fib_scale', 'iso_scale']
+        else:
+            raise ValueError('Material not recognized')
+        
 
     def fung_mat(self, params):
+        assert len(params) == 4, 'Fung material requires 4 parameters'
+
         F = sp.MatrixSymbol('F', 3, 3)  # Deformation gradient
         E = 0.5*(F.T*F - sp.Identity(3))    # Green-Lagrange strain tensor
 
@@ -48,6 +62,8 @@ class BiaxialTest:
 
 
     def ho_mat(self, params):
+        assert len(params) == 4, 'HO material requires 4 parameters'
+
         F = sp.MatrixSymbol('F', 3, 3)
         f0 = sp.MatrixSymbol('f0', 3, 1)
         f0 = sp.Matrix([1.,0.,0.])
@@ -70,6 +86,8 @@ class BiaxialTest:
 
 
     def ho_linear_mat(self, params):
+        assert len(params) == 2, 'HO linear material requires 2 parameters'
+
         F = sp.MatrixSymbol('F', 3, 3)
         f0 = sp.Matrix([1.,0.,0.])
 
@@ -92,6 +110,8 @@ class BiaxialTest:
 
 
     def de_mat_linear(self, params):
+        assert len(params) == 2, 'DE linear material requires 2 parameters'
+
         fib_scale, iso_scale = params
 
         b1 = 10.02
@@ -219,18 +239,20 @@ if __name__ == '__main__':
 
     # Initialize class
     biaxial_test = BiaxialTest()
+    param_names = biaxial_test.get_material_param_names(material)
 
     # Fit remote data
     sol = least_squares(biaxial_test.error_respect_data, np.ones(2), args=(material, 'remote'), bounds=(0.,np.inf))
     params_remote = sol.x
     remote_func = biaxial_test.get_biaxial_func(material, params_remote, planestress=True)
-    print('Remote params:', params_remote)
+
+    print('Remote params:', [name + ': ' + str(param) for name, param in zip(param_names, params_remote)])
 
     # Fit infarct data
     sol = least_squares(biaxial_test.error_respect_data, np.ones(2), args=(material, 'infarct'), bounds=(0.,np.inf))
     params_infarct = sol.x
     infarct_func = biaxial_test.get_biaxial_func(material, params_infarct, planestress=True)
-    print('Infarct params:', params_infarct)
+    print('Infarct params:', [name + ': ' + str(param) for name, param in zip(param_names, params_infarct)])
 
     print('Scalings:', params_infarct/params_remote)
 
